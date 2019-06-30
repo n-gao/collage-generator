@@ -174,7 +174,7 @@ if __name__ == '__main__':
     print('Generating tree...')
     tree = generate_best_tree(imgs, target_ratio)
     print('Building image...')
-    img = np.ones((args.height, args.width, 3), dtype=int)*255
+    img = np.ones((args.height, args.width, 3), dtype=np.uint8)*255
     to_image(img, tree, 0, 0, args.height)
     print('Saving output...')
     mpimg.imsave(args.output, img)

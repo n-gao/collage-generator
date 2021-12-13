@@ -142,11 +142,11 @@ def to_image(img, node, x, y, height):
     r_alpha = node.right.alpha
     width = alpha * height
     if node.split == 'V':
-        to_image(img, node.left, x, y, height)
-        to_image(img, node.right, x + math.floor(width * l_alpha/alpha), y, height)
+        to_image(img, node.left, x, y, height + 2)
+        to_image(img, node.right, x + math.floor(width * l_alpha/alpha), y, height + 2)
     else:
-        to_image(img, node.left, x, y, math.floor(height * alpha/l_alpha))
-        to_image(img, node.right, x, y + math.floor(height * alpha/l_alpha), math.floor(height * alpha/r_alpha))
+        to_image(img, node.left, x, y, math.floor(height * alpha/l_alpha)+2)
+        to_image(img, node.right, x, y + math.floor(height * alpha/l_alpha), math.floor(height * alpha/r_alpha)+2)
 
 def is_valid_folder(parser, arg):
     if not exists(arg) or isfile(arg):

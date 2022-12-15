@@ -1,11 +1,12 @@
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from os import listdir
-from os.path import isfile, join, exists
-import numpy as np
-import cv2
-import math
 import argparse
+import math
+import random
+from os import listdir
+from os.path import exists, isfile, join
+
+import cv2
+import numpy as np
+
 
 class Node:
     def __init__(self, N, alpha_t=None, parent=None, split=None, img=None, left=None, right=None):
@@ -16,14 +17,14 @@ class Node:
         self.img = img
         self.N = N
         self.alpha_t = alpha_t
-        
+
     @property
     def depth(self):
         if self.parent == None:
             return 0
         else:
             return self.parent.depth + 1
-        
+
     @property
     def alpha(self):
         if self.img is not None:
@@ -35,11 +36,19 @@ class Node:
         else:
             return (alpha_left * alpha_right)/(alpha_left + alpha_right)
 
+
 def load_images(folder):
     imgs = []
     for img in listdir(folder):
-        imgs.append(mpimg.imread(join(folder, img)))
+        try:
+            img = cv2.imread(join(folder, img), cv2.IMREAD_COLOR)
+            if img is None:
+                raise IOError()
+            imgs.append(img)
+        except:
+            pass
     return imgs
+
 
 def find_img_pair(alpha_t, L):
     p = 0
@@ -67,6 +76,7 @@ def find_img_pair(alpha_t, L):
             break
     return (i, j)
 
+
 def generate_tree(L, node):
     if node.N == 1:
         best_fit = sorted(L, key=lambda l: abs(l.alpha - node.alpha_t))[0]
@@ -84,13 +94,18 @@ def generate_tree(L, node):
         return
     node.split = np.random.choice(['V', 'H'])
     if node.split == 'V':
-        node.left = Node(parent=node, N=math.floor(node.N/2), alpha_t = node.alpha_t/2)
-        node.right = Node(parent=node, N=math.ceil(node.N/2), alpha_t = node.alpha_t/2)
+        node.left = Node(parent=node, N=math.floor(
+            node.N/2), alpha_t=node.alpha_t/2)
+        node.right = Node(parent=node, N=math.ceil(
+            node.N/2), alpha_t=node.alpha_t/2)
     else:
-        node.left = Node(parent=node, N=math.floor(node.N/2), alpha_t = node.alpha_t*2)
-        node.right = Node(parent=node, N=math.ceil(node.N/2), alpha_t = node.alpha_t*2)
+        node.left = Node(parent=node, N=math.floor(
+            node.N/2), alpha_t=node.alpha_t*2)
+        node.right = Node(parent=node, N=math.ceil(
+            node.N/2), alpha_t=node.alpha_t*2)
     generate_tree(L, node.left)
     generate_tree(L, node.right)
+
 
 def adjust_tree(node, th):
     if node.img is not None:
@@ -108,6 +123,7 @@ def adjust_tree(node, th):
     adjust_tree(node.left, th)
     adjust_tree(node.right, th)
 
+
 def generate_and_adjust_tree(imgs, ratio, th):
     L = [Node(N=1, img=img) for img in imgs]
     L.sort(key=lambda node: node.alpha)
@@ -116,6 +132,7 @@ def generate_and_adjust_tree(imgs, ratio, th):
     for i in range(10):
         adjust_tree(root, th)
     return root
+
 
 def generate_best_tree(imgs, target_ratio, threshold=1e-4):
     best_tree = None
@@ -130,10 +147,12 @@ def generate_best_tree(imgs, target_ratio, threshold=1e-4):
                 break
     return best_tree
 
+
 def to_image(img, node, x, y, height):
     if node.img is not None:
         new_width = math.floor(node.alpha * height)
-        res = cv2.resize(node.img, dsize=(new_width, height), interpolation=cv2.INTER_CUBIC)
+        res = cv2.resize(node.img, dsize=(new_width, height),
+                         interpolation=cv2.INTER_CUBIC)
         target_shape = img[y:height+y, x:new_width+x].shape
         img[y:height+y, x:new_width+x] = res[:target_shape[0], :target_shape[1]]
         return
@@ -143,10 +162,13 @@ def to_image(img, node, x, y, height):
     width = alpha * height
     if node.split == 'V':
         to_image(img, node.left, x, y, height + 2)
-        to_image(img, node.right, x + math.floor(width * l_alpha/alpha), y, height + 2)
+        to_image(img, node.right, x +
+                 math.floor(width * l_alpha/alpha), y, height + 2)
     else:
         to_image(img, node.left, x, y, math.floor(height * alpha/l_alpha)+2)
-        to_image(img, node.right, x, y + math.floor(height * alpha/l_alpha), math.floor(height * alpha/r_alpha)+2)
+        to_image(img, node.right, x, y + math.floor(height * alpha /
+                 l_alpha), math.floor(height * alpha/r_alpha)+2)
+
 
 def is_valid_folder(parser, arg):
     if not exists(arg) or isfile(arg):
@@ -154,22 +176,27 @@ def is_valid_folder(parser, arg):
     else:
         return arg
 
+
 def is_valid_file(parser, arg):
     if exists(arg) and not isfile(arg):
         parser.error("The %s is a folder!" % arg)
     else:
         return arg
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Colalge generator.')
-    parser.add_argument('src_folder', help='Source image folder', default='.', type=lambda x:is_valid_folder(parser, x))
-    parser.add_argument('--output', default='collage.png', type=lambda x:is_valid_file(parser, x))
+    parser.add_argument('src_folder', help='Source image folder',
+                        default='.', type=lambda x: is_valid_folder(parser, x))
+    parser.add_argument('--output', default='collage.png',
+                        type=lambda x: is_valid_file(parser, x))
     parser.add_argument('--width', default=4096, type=int)
     parser.add_argument('--height', default=2048, type=int)
     args = parser.parse_args()
-    
+
     print('Loading images...')
     imgs = load_images(args.src_folder)
+    random.shuffle(imgs)
     target_ratio = args.width/args.height
     print('Generating tree...')
     tree = generate_best_tree(imgs, target_ratio)
@@ -177,5 +204,5 @@ if __name__ == '__main__':
     img = np.ones((args.height, args.width, 3), dtype=np.uint8)*255
     to_image(img, tree, 0, 0, args.height)
     print('Saving output...')
-    mpimg.imsave(args.output, img)
+    cv2.imwrite(args.output, img)
     print('Done.')
